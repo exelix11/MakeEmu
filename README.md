@@ -11,5 +11,7 @@ A simple tool to flash sd cards for Atmosphère's emummc on Windows
 4) Wait
 5) Profit
 
+This wasn't originally meant to be public but someone asked, it may not receive further updates
+
 ## Credits
 Some code for flashing drives was taken from [DynamicDevices/DiskImager](https://github.com/DynamicDevices/DiskImager)
