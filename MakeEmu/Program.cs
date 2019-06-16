@@ -13,6 +13,17 @@ namespace MakeEmu
 {
 	class Program
 	{
+		const uint ENABLE_QUICK_EDIT = 0x0040;
+		const int STD_INPUT_HANDLE = -10;
+		[DllImport("kernel32.dll", SetLastError = true)]
+		static extern IntPtr GetStdHandle(int nStdHandle);
+
+		[DllImport("kernel32.dll")]
+		static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+		[DllImport("kernel32.dll")]
+		static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
+
 		[DllImport("kernel32", SetLastError = true, CharSet = CharSet.Auto)]
 		public static extern int GetDiskFreeSpace(
 			string lpRootPathName, out int lpSectorsPerCluster, out int lpBytesPerSector,
@@ -22,6 +33,13 @@ namespace MakeEmu
 
 		static void Main(string[] args)
 		{
+			//this disables selecting in the cmd window, an user can accidentally click on the window causing it to go to selection mode and freeze the process.
+			IntPtr consoleHandle = GetStdHandle(STD_INPUT_HANDLE);
+			uint consoleMode;
+			GetConsoleMode(consoleHandle, out consoleMode);
+			consoleMode &= ~ENABLE_QUICK_EDIT;
+			SetConsoleMode(consoleHandle, consoleMode);
+
 			Console.WriteLine("MakeEmu 1.0 --- https://github.com/exelix11/MakeEmu");
 			Console.WriteLine("A simple tool to flash sd cards for Atmosphère's emummc on Windows");
 			Console.WriteLine("");
@@ -36,6 +54,7 @@ namespace MakeEmu
 					if (x.IsReady) Console.WriteLine($"{x.Name} : {x.VolumeLabel} {x.TotalSize} Bytes");
 					else Console.WriteLine($"{x.Name} : unknown filesystem");
 				});
+				Console.ReadKey();
 				return;
 			}
 
