@@ -8,8 +8,8 @@ namespace DynamicDevices.DiskWriter.Win32
 	{
 		#region Fields
 
-		SafeFileHandle _partitionHandle = null;
-		SafeFileHandle _diskHandle = null;
+		public SafeFileHandle _partitionHandle = null;
+		public SafeFileHandle _diskHandle = null;
 
 		#endregion
 
