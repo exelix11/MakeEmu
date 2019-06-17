@@ -1,4 +1,5 @@
-﻿using DynamicDevices.DiskWriter.Win32;
+﻿using DynamicDevices.DiskWriter;
+using DynamicDevices.DiskWriter.Win32;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
@@ -40,7 +41,7 @@ namespace MakeEmu
 			consoleMode &= ~ENABLE_QUICK_EDIT;
 			SetConsoleMode(consoleHandle, consoleMode);
 
-			Console.WriteLine("MakeEmu 1.0 --- https://github.com/exelix11/MakeEmu");
+			Console.WriteLine("MakeEmu 1.1 --- https://github.com/exelix11/MakeEmu");
 			Console.WriteLine("A simple tool to flash sd cards for Atmosphère's emummc on Windows");
 			Console.WriteLine("");
 
@@ -63,17 +64,53 @@ namespace MakeEmu
 			string RawNand = args[2];
 			string TargetDevice = args[3];
 
-			//Check device info
-			GetDiskFreeSpace(TargetDevice, out int lpSectorsPerCluster, out int lpBytesPerSector, out _, out int lpTotalNumberOfClusters);
+			{
+				//Check device info
+				GetDiskFreeSpace(TargetDevice, out int lpSectorsPerCluster, out int lpBytesPerSector, out _, out int lpTotalNumberOfClusters);
+				var TotalDiskSize = (UInt64)lpTotalNumberOfClusters * (UInt64)lpSectorsPerCluster * (UInt64)lpBytesPerSector;
 
-			if ((UInt64)lpTotalNumberOfClusters * (UInt64)lpSectorsPerCluster * (UInt64)lpBytesPerSector < ExpectedFullBackupSize)
-				Console.WriteLine($"Warning: There seems to not be enough space for emunand, this is normal if {TargetDevice} is not FAT32 formatted.");
-
-			if (lpBytesPerSector != 512)
-				Console.WriteLine($"Warning: the partition sector size is not 512, this is normal if {TargetDevice} is not FAT32 formatted.");
+				if (TotalDiskSize == 0)
+					Console.WriteLine($"Warning: Windows reports the disk size to be 0, this is normal if {TargetDevice} does not have a valid filesystem.\n");
+				else if (TotalDiskSize < ExpectedFullBackupSize)
+				{
+					Console.WriteLine($"Warning: There seems to not be enough space for emunand, did you select the correct disk ?");
+					Console.WriteLine("Press enter to continue anyway but the process could fail.\n");
+					Console.ReadLine();
+				}
+			}
 
 			if (TargetDevice.EndsWith("\\") || TargetDevice.EndsWith("/"))
 				TargetDevice = TargetDevice.Substring(0, TargetDevice.Length - 1);
+
+			var disk = new Win32DiskAccess();
+			disk.Open(@"\\.\" + TargetDevice);
+
+			int SectorSize = 0;
+
+			{
+				var geometrySize = Marshal.SizeOf(typeof(DiskGeometryEx));
+				var geometryBlob = Marshal.AllocHGlobal(geometrySize);
+				uint numBytesRead = 0;
+
+				var success = NativeMethods.DeviceIoControl(disk._diskHandle, NativeMethods.IOCTL_DISK_GET_DRIVE_GEOMETRY_EX, IntPtr.Zero,
+														0, geometryBlob, (uint)geometrySize, ref numBytesRead, IntPtr.Zero);
+
+				var geometry = (DiskGeometryEx)Marshal.PtrToStructure(geometryBlob, typeof(DiskGeometryEx));
+
+				if (success)
+				{
+					if (geometry.Geometry.BytesPerSector != 512)
+						Console.WriteLine($"Warning: the disk BytesPerSector value is not 512");
+					SectorSize = geometry.Geometry.BytesPerSector;
+				}
+				else
+				{
+					Console.WriteLine("ERROR: coulnd't get the sector size of the target device. Press enter to continue anyway...");
+					Console.ReadLine();
+				}
+
+				Marshal.FreeHGlobal(geometryBlob);
+			}
 
 			var searcher = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_LogicalDiskToPartition");
 			UInt64 PartitionStartingAddress = 0;
@@ -90,11 +127,11 @@ namespace MakeEmu
 			}
 			else
 			{
-				Console.Write("Partition starting offset is : 0x" + PartitionStartingAddress.ToString("X"));
-				if (lpBytesPerSector == 0)
-					Console.Write(" couldn't calculate the emmc_sector value as the sector size returned 0, assuming it is 512: 0x" + (PartitionStartingAddress / 512UL).ToString("X") + "\n");
+				if (SectorSize == 0)
+					Console.WriteLine("Warning: couldn't calculate the emmc_sector value as the sector size returned 0, assuming it is 512: 0x" + (PartitionStartingAddress / 512UL).ToString("X") + "\n");
 				else
-					Console.Write(" emummc_sector is 0x" + (PartitionStartingAddress / (UInt64)lpBytesPerSector).ToString("X") + "\n");
+					Console.WriteLine("emummc_sector is 0x" + (PartitionStartingAddress / (UInt64)SectorSize).ToString("X") );
+				Console.WriteLine($"(Partition starting offset is 0x{PartitionStartingAddress.ToString("X")} bytes and the sector size is {SectorSize})");
 			}
 
 			Int64 TotalSize = new FileInfo(Boot0).Length + new FileInfo(Boot1).Length + new FileInfo(RawNand).Length;
@@ -104,11 +141,9 @@ namespace MakeEmu
 
 			Console.WriteLine($"\nThe total nand size is {TotalSize} and the target device is {TargetDevice}.");
 			Console.WriteLine("Everything is ready, press enter to start....");
+			Console.ReadLine();
 
-			var disk = new Win32DiskAccess();
-			disk.Open(@"\\.\" + TargetDevice);
-
-			const int ReadBlockSize = 1024 * 1204; //1MB
+			const int ReadBlockSize = 1024 * 1204 * 16; //16MB
 
 			void WriteFileToDisk(string fileName)
 			{
@@ -141,9 +176,9 @@ namespace MakeEmu
 			WriteFileToDisk(Boot1);
 			WriteFileToDisk(RawNand);
 
-			Console.WriteLine("Completed !");
-
 			disk.Close();
+			Console.WriteLine("Completed !");
+			Console.ReadLine();
 		}
 	}
 }
