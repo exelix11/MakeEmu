@@ -64,6 +64,12 @@ namespace MakeEmu
 			string RawNand = args[2];
 			string TargetDevice = args[3];
 
+			if (TargetDevice.Length == 1 && char.IsLetter(TargetDevice[0]))
+			{
+				Console.WriteLine($"\"{TargetDevice}\" is invalid, did you mean \"{TargetDevice}:\" ? ");
+				return;
+			}
+			
 			{
 				//Check device info
 				GetDiskFreeSpace(TargetDevice, out int lpSectorsPerCluster, out int lpBytesPerSector, out _, out int lpTotalNumberOfClusters);
