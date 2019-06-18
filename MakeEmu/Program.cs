@@ -66,7 +66,7 @@ namespace MakeEmu
 
 			if (TargetDevice.Length == 1 && char.IsLetter(TargetDevice[0]))
 			{
-				Console.WriteLine($"\"{TargetDevice}\" is invalid, did you mean \"{TargetDevice}:\" ? ");
+				Console.WriteLine($"Drive name \"{TargetDevice}\" is invalid, did you mean \"{TargetDevice}:\" ? ");
 				return;
 			}
 			
@@ -137,7 +137,23 @@ namespace MakeEmu
 					Console.WriteLine("Warning: couldn't calculate the emmc_sector value as the sector size returned 0, assuming it is 512: 0x" + (PartitionStartingAddress / 512UL).ToString("X") + "\n");
 				else
 					Console.WriteLine("emummc_sector is 0x" + (PartitionStartingAddress / (UInt64)SectorSize).ToString("X") );
-				Console.WriteLine($"(Partition starting offset is 0x{PartitionStartingAddress.ToString("X")} bytes and the sector size is {SectorSize})");
+				Console.WriteLine($"(Partition starting offset is 0x{PartitionStartingAddress.ToString("X")} bytes and the sector size is {SectorSize})\n");
+			}
+
+			if (!File.Exists(Boot0))
+			{
+				Console.WriteLine($"Error: couldn't find file {Boot0}");
+				return;
+			}
+			if (!File.Exists(Boot1))
+			{
+				Console.WriteLine($"Error: couldn't find file {Boot1}");
+				return;
+			}
+			if (!File.Exists(RawNand))
+			{
+				Console.WriteLine($"Error: couldn't find file {RawNand}");
+				return;
 			}
 
 			Int64 TotalSize = new FileInfo(Boot0).Length + new FileInfo(Boot1).Length + new FileInfo(RawNand).Length;
@@ -145,7 +161,7 @@ namespace MakeEmu
 			if ((UInt64)TotalSize != ExpectedFullBackupSize)
 				Console.WriteLine($"Warning: the total backup size is {TotalSize} bytes but {ExpectedFullBackupSize} is expected");
 
-			Console.WriteLine($"\nThe total nand size is {TotalSize} and the target device is {TargetDevice}.");
+			Console.WriteLine($"The total nand size is {TotalSize} and the target device is {TargetDevice}");
 			Console.WriteLine("Everything is ready, press enter to start....");
 			Console.ReadLine();
 
