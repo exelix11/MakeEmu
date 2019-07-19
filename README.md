@@ -1,6 +1,8 @@
 # MakeEmu
 A simple tool to flash sd cards for Atmosphère's emummc on Windows
 
+As now hekate supports creating the emummc partition directly it's recommended to use it instead, if you already have a nand backup on your pc this should still work but you may not receive support in case of issues. 
+
 ## Warning
 **This program directly writes to disks and so it can corrupt partition tables and cause data loss, use it at your own risk**
 
